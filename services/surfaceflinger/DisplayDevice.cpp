@@ -514,14 +514,10 @@ void DisplayDevice::setProjection(ui::Rotation orientation, Rect layerStackSpace
     }
 #endif
 
-    // We need to take care of display rotation for globalTransform for case if the panel is not
-    // installed aligned with device orientation.
     const auto transformOrientation = orientation + mPhysicalOrientation;
 
     const auto& state = getCompositionDisplay()->getState();
 
-    // If the layer stack and destination frames have never been set, then configure them to be the
-    // same as the physical device, taking into account the total transform.
     if (!orientedDisplaySpaceRect.isValid()) {
         ui::Size bounds = state.displaySpace.getBounds();
         bounds.rotate(transformOrientation);
@@ -532,6 +528,33 @@ void DisplayDevice::setProjection(ui::Rotation orientation, Rect layerStackSpace
         bounds.rotate(transformOrientation);
         layerStackSpaceRect = Rect(bounds);
     }
+
+    if (!isPrimary()) {
+        ui::Size physBounds = state.displaySpace.getBounds();
+        physBounds.rotate(transformOrientation);
+
+        const float displayWidth = static_cast<float>(physBounds.width);
+        const float displayHeight = static_cast<float>(physBounds.height);
+
+        const float sourceWidth = static_cast<float>(layerStackSpaceRect.width());
+        const float sourceHeight = static_cast<float>(layerStackSpaceRect.height());
+
+        if (sourceWidth > 0.0f && sourceHeight > 0.0f && displayWidth > 0.0f && displayHeight > 0.0f) {
+            const float scaleX = displayWidth / sourceWidth;
+            const float scaleY = displayHeight / sourceHeight;
+
+            const float scale = std::max(scaleX, scaleY);
+
+            const int32_t newWidth = static_cast<int32_t>(sourceWidth * scale);
+            const int32_t newHeight = static_cast<int32_t>(sourceHeight * scale);
+
+            const int32_t left = static_cast<int32_t>((displayWidth - newWidth) / 2.0f);
+            const int32_t top = static_cast<int32_t>((displayHeight - newHeight) / 2.0f);
+
+            orientedDisplaySpaceRect = Rect(left, top, left + newWidth, top + newHeight);
+        }
+    }
+
     getCompositionDisplay()->setProjection(transformOrientation, layerStackSpaceRect,
                                            orientedDisplaySpaceRect);
 }
