@@ -44,6 +44,7 @@
 #include <termios.h>
 #include <linux/kd.h>
 #include <linux/vt.h>
+#include <android-base/properties.h>
 
 #include "DisplayDevice.h"
 #include "FrontEnd/DisplayInfo.h"
@@ -529,7 +530,10 @@ void DisplayDevice::setProjection(ui::Rotation orientation, Rect layerStackSpace
         layerStackSpaceRect = Rect(bounds);
     }
 
-    if (!isPrimary()) {
+    std::string rawProp = android::base::GetProperty("persist.vendor.secdisplaymode", "UNSET");
+    int secDisplayMode = android::base::GetIntProperty("persist.vendor.secdisplaymode", 2);
+
+    if (!isPrimary() && (secDisplayMode == 1 || rawProp == "1")) {
         ui::Size physBounds = state.displaySpace.getBounds();
         physBounds.rotate(transformOrientation);
 
